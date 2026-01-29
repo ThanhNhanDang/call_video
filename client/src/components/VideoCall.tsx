@@ -142,7 +142,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                 }
             } catch (error) {
                 console.error('❌ Error setting up call:', error);
-                alert('Không thể truy cập camera/microphone. Vui lòng kiểm tra quyền truy cập.');
+                alert(error);
                 onLeave();
             }
         }
