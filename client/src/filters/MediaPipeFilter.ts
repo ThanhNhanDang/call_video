@@ -5,8 +5,12 @@
  * và Face Mesh cho beauty filter
  */
 
-import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
-import { FaceMesh } from '@mediapipe/face_mesh';
+import * as SelfieSegmentationModule from '@mediapipe/selfie_segmentation';
+import * as FaceMeshModule from '@mediapipe/face_mesh';
+
+// Handle different module export structures (ESM vs CJS fallback)
+const SelfieSegmentation = (SelfieSegmentationModule as any).SelfieSegmentation || SelfieSegmentationModule;
+const FaceMesh = (FaceMeshModule as any).FaceMesh || FaceMeshModule;
 
 export class MediaPipeFilter {
     private selfieSegmentation: any | null = null;

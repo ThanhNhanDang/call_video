@@ -7,5 +7,8 @@ export default defineConfig({
     server: {
         port: 5173,
         host: true
+    },
+    optimizeDeps: {
+        exclude: ['@mediapipe/selfie_segmentation', '@mediapipe/face_mesh']
     }
 })
