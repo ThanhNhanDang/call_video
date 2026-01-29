@@ -16,6 +16,21 @@ interface VideoCallProps {
     onLeave: () => void;
 }
 
+// Helper function to safely play video
+const safePlay = async (video: HTMLVideoElement | null) => {
+    if (!video) return;
+    try {
+        // Only play if not already playing or to handle new source
+        await video.play();
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            console.log('🎥 Playback interrupted (AbortError), safe to ignore');
+        } else {
+            console.error('❌ Error playing video:', error);
+        }
+    }
+};
+
 export function VideoCall({ roomId, onLeave }: VideoCallProps) {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -32,6 +47,12 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [connectionState, setConnectionState] = useState<string>('connecting');
     const [peerUserId, setPeerUserId] = useState<string | null>(null);
+    const peerUserIdRef = useRef<string | null>(null);
+
+    const updatePeerUserId = (id: string | null) => {
+        setPeerUserId(id);
+        peerUserIdRef.current = id;
+    };
 
     // Initialize camera and setup
     useEffect(() => {
@@ -45,20 +66,34 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
 
                 setLocalStream(stream);
 
-                // 2. Setup video element
+                // 2. Setup video element and wait for it to be ready
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = stream;
-                    localVideoRef.current.play();
+                    await safePlay(localVideoRef.current);
+
+                    // Wait for video to have dimensions
+                    if (localVideoRef.current.readyState < 2) { // HAVE_CURRENT_DATA
+                        await new Promise(resolve => {
+                            if (localVideoRef.current) {
+                                localVideoRef.current.onloadeddata = resolve;
+                            } else {
+                                resolve(null);
+                            }
+                        });
+                    }
                 }
 
                 // 3. Setup canvas renderer
-                if (canvasRef.current && localVideoRef.current) {
+                if (canvasRef.current && localVideoRef.current && mounted) {
                     const canvasRenderer = new CanvasRenderer(canvasRef.current, localVideoRef.current);
                     await canvasRenderer.initialize();
                     canvasRenderer.start();
                     setRenderer(canvasRenderer);
 
                     // 4. Setup WebRTC peer connection với filtered stream
+                    // Wait a bit to ensure the first frame is rendered
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
                     const filteredStream = canvasRenderer.getOutputStream(30);
 
                     // Thêm audio tracks từ original stream
@@ -74,7 +109,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         setRemoteStream(remoteStream);
                         if (remoteVideoRef.current) {
                             remoteVideoRef.current.srcObject = remoteStream;
-                            remoteVideoRef.current.play();
+                            safePlay(remoteVideoRef.current);
                         }
                     };
 
@@ -89,7 +124,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
 
                     signaling.on('user-joined', async ({ userId }) => {
                         console.log('👤 Peer joined, creating offer');
-                        setPeerUserId(userId);
+                        updatePeerUserId(userId);
 
                         // Người join sau sẽ tạo offer
                         const offer = await pc.createOffer();
@@ -98,13 +133,13 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
 
                     signaling.on('user-already-in-room', async ({ userId }) => {
                         console.log('👤 Peer already in room');
-                        setPeerUserId(userId);
+                        updatePeerUserId(userId);
                         // Chờ offer từ peer
                     });
 
                     signaling.on('webrtc-offer', async ({ offer, userId }) => {
                         console.log('📥 Received offer, creating answer');
-                        setPeerUserId(userId);
+                        updatePeerUserId(userId);
 
                         await pc.setRemoteDescription(offer);
                         const answer = await pc.createAnswer();
@@ -124,13 +159,15 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                     signaling.on('user-left', () => {
                         console.log('👋 Peer left');
                         setRemoteStream(null);
-                        setPeerUserId(null);
+                        updatePeerUserId(null);
                         setConnectionState('disconnected');
                     });
 
                     pc.onIceCandidate = (candidate) => {
-                        if (peerUserId) {
-                            signaling.sendIceCandidate(candidate, peerUserId);
+                        if (peerUserIdRef.current) {
+                            signaling.sendIceCandidate(candidate, peerUserIdRef.current);
+                        } else {
+                            console.log('⏳ ICE candidate generated but peer not identified yet');
                         }
                     };
 
@@ -217,7 +254,9 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                 <h2>📞 Cuộc gọi video - Phòng: {roomId}</h2>
                 <div className="connection-status">
                     <span className={`status-indicator ${connectionState}`}></span>
-                    <span className="status-text">{connectionState}</span>
+                    <span className="status-text">
+                        {connectionState} {peerUserId && `(Đang gọi với: ${peerUserId.slice(0, 5)}...)`}
+                    </span>
                 </div>
             </div>
 

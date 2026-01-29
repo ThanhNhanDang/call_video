@@ -107,7 +107,10 @@ export class CanvasRenderer {
      * Main rendering loop
      */
     private async renderLoop() {
-        if (this.videoElement.readyState === this.videoElement.HAVE_ENOUGH_DATA) {
+        if (this.videoElement.readyState >= this.videoElement.HAVE_CURRENT_DATA &&
+            this.videoElement.videoWidth > 0 &&
+            this.videoElement.videoHeight > 0) {
+
             // Set canvas size to match video
             if (this.canvas.width !== this.videoElement.videoWidth) {
                 this.canvas.width = this.videoElement.videoWidth;
