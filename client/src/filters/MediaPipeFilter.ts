@@ -5,13 +5,6 @@
  * và Face Mesh cho beauty filter
  */
 
-import * as SelfieSegmentationModule from '@mediapipe/selfie_segmentation';
-import * as FaceMeshModule from '@mediapipe/face_mesh';
-
-// Handle different module export structures (ESM vs CJS fallback)
-const SelfieSegmentation = (SelfieSegmentationModule as any).SelfieSegmentation || SelfieSegmentationModule;
-const FaceMesh = (FaceMeshModule as any).FaceMesh || FaceMeshModule;
-
 export class MediaPipeFilter {
     private selfieSegmentation: any | null = null;
     private faceMesh: any | null = null;
@@ -23,9 +16,21 @@ export class MediaPipeFilter {
         console.log('🎨 Initializing MediaPipe filters...');
 
         try {
+            // Dynamic import to handle module loading issues
+            const SelfieSegmentationModule = await import('@mediapipe/selfie_segmentation');
+            const FaceMeshModule = await import('@mediapipe/face_mesh');
+
+            // Get the constructor - handle both default and named exports
+            const SelfieSegmentation = (SelfieSegmentationModule as any).SelfieSegmentation ||
+                (SelfieSegmentationModule as any).default?.SelfieSegmentation ||
+                SelfieSegmentationModule;
+            const FaceMesh = (FaceMeshModule as any).FaceMesh ||
+                (FaceMeshModule as any).default?.FaceMesh ||
+                FaceMeshModule;
+
             // Initialize Selfie Segmentation cho background blur
             this.selfieSegmentation = new SelfieSegmentation({
-                locateFile: (file) => {
+                locateFile: (file: string) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
                 }
             });
@@ -37,7 +42,7 @@ export class MediaPipeFilter {
 
             // Initialize Face Mesh cho beauty filter và AR overlay
             this.faceMesh = new FaceMesh({
-                locateFile: (file) => {
+                locateFile: (file: string) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
                 }
             });
