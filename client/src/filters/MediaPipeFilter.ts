@@ -1,9 +1,16 @@
 /**
  * MediaPipe Filter Integration
  * 
- * Sử dụng MediaPipe Selfie Segmentation cho background blur
- * và Face Mesh cho beauty filter
+ * Sử dụng MediaPipe từ CDN thay vì npm packages để tránh bundling issues
  */
+
+// Declare global types for MediaPipe loaded from CDN
+declare global {
+    interface Window {
+        SelfieSegmentation: any;
+        FaceMesh: any;
+    }
+}
 
 export class MediaPipeFilter {
     private selfieSegmentation: any | null = null;
@@ -16,20 +23,11 @@ export class MediaPipeFilter {
         console.log('🎨 Initializing MediaPipe filters...');
 
         try {
-            // Dynamic import to handle module loading issues
-            const SelfieSegmentationModule = await import('@mediapipe/selfie_segmentation');
-            const FaceMeshModule = await import('@mediapipe/face_mesh');
-
-            // Get the constructor - handle both default and named exports
-            const SelfieSegmentation = (SelfieSegmentationModule as any).SelfieSegmentation ||
-                (SelfieSegmentationModule as any).default?.SelfieSegmentation ||
-                SelfieSegmentationModule;
-            const FaceMesh = (FaceMeshModule as any).FaceMesh ||
-                (FaceMeshModule as any).default?.FaceMesh ||
-                FaceMeshModule;
+            // Load MediaPipe scripts from CDN if not already loaded
+            await this.loadMediaPipeScripts();
 
             // Initialize Selfie Segmentation cho background blur
-            this.selfieSegmentation = new SelfieSegmentation({
+            this.selfieSegmentation = new window.SelfieSegmentation({
                 locateFile: (file: string) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
                 }
@@ -41,7 +39,7 @@ export class MediaPipeFilter {
             });
 
             // Initialize Face Mesh cho beauty filter và AR overlay
-            this.faceMesh = new FaceMesh({
+            this.faceMesh = new window.FaceMesh({
                 locateFile: (file: string) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
                 }
@@ -60,6 +58,45 @@ export class MediaPipeFilter {
             console.error('❌ Error initializing MediaPipe:', error);
             throw error;
         }
+    }
+
+    /**
+     * Load MediaPipe scripts from CDN
+     */
+    private async loadMediaPipeScripts(): Promise<void> {
+        // Check if already loaded
+        if (window.SelfieSegmentation && window.FaceMesh) {
+            return;
+        }
+
+        // Load scripts
+        await Promise.all([
+            this.loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js'),
+            this.loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js')
+        ]);
+
+        // Wait a bit for scripts to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    /**
+     * Helper to load external script
+     */
+    private loadScript(src: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Check if script already exists
+            const existing = document.querySelector(`script[src="${src}"]`);
+            if (existing) {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+            document.head.appendChild(script);
+        });
     }
 
     /**
