@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { VideoCall } from './components/VideoCall';
 import './index.css';
 
+const DEFAULT_ROOM_ID = 'phong-chung';
+
 function App() {
     const [roomId, setRoomId] = useState('');
     const [inCall, setInCall] = useState(false);
@@ -16,13 +18,13 @@ function App() {
         }
     }, []);
 
-    const handleStartNewCall = () => {
-        // Generate random room ID (e.g., room-123456)
-        const randomId = 'room-' + Math.floor(Math.random() * 1000000);
-        const newUrl = window.location.pathname + '?room=' + randomId;
+    const handleJoinCall = () => {
+        // Use fixed room ID
+        const selectedRoomId = roomId || DEFAULT_ROOM_ID;
+        const newUrl = window.location.pathname + '?room=' + selectedRoomId;
         window.history.pushState({ path: newUrl }, '', newUrl);
 
-        setRoomId(randomId);
+        setRoomId(selectedRoomId);
         setInCall(true);
     };
 
@@ -53,9 +55,9 @@ function App() {
                     <div className="join-section">
                         <button
                             className="join-btn"
-                            onClick={handleStartNewCall}
+                            onClick={handleJoinCall}
                         >
-                            🚀 Bắt đầu cuộc gọi mới
+                            🚀 Tham gia cuộc gọi
                         </button>
                     </div>
 
