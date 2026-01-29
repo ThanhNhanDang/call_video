@@ -7,9 +7,17 @@ import { setupSocketHandlers } from './socket.js';
 const app = express();
 const httpServer = createServer(app);
 
-// CORS configuration - cho phép frontend kết nối
+// CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || process.env.Start_With_Wildcard === 'true') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 
@@ -23,7 +31,13 @@ app.get('/health', (req, res) => {
 // Socket.IO setup với CORS
 const io = new Server(httpServer, {
     cors: {
-        origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin) || process.env.Start_With_Wildcard === 'true') {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ['GET', 'POST'],
         credentials: true
     }

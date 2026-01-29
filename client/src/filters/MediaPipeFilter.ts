@@ -5,10 +5,8 @@
  * và Face Mesh cho beauty filter
  */
 
-// @ts-ignore
-import SelfieSegmentation from '@mediapipe/selfie_segmentation';
-// @ts-ignore
-import FaceMesh from '@mediapipe/face_mesh';
+import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
+import { FaceMesh } from '@mediapipe/face_mesh';
 
 export class MediaPipeFilter {
     private selfieSegmentation: any | null = null;

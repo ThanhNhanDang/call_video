@@ -1,33 +1,36 @@
-/**
- * Main App Component
- */
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VideoCall } from './components/VideoCall';
 import './index.css';
 
 function App() {
     const [roomId, setRoomId] = useState('');
-    const [inputRoomId, setInputRoomId] = useState('');
     const [inCall, setInCall] = useState(false);
 
-    const handleJoinRoom = () => {
-        if (inputRoomId.trim()) {
-            setRoomId(inputRoomId.trim());
+    useEffect(() => {
+        // Check URL for room param
+        const params = new URLSearchParams(window.location.search);
+        const roomParam = params.get('room');
+        if (roomParam) {
+            setRoomId(roomParam);
             setInCall(true);
         }
+    }, []);
+
+    const handleStartNewCall = () => {
+        // Generate random room ID (e.g., room-123456)
+        const randomId = 'room-' + Math.floor(Math.random() * 1000000);
+        const newUrl = window.location.pathname + '?room=' + randomId;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+
+        setRoomId(randomId);
+        setInCall(true);
     };
 
     const handleLeaveRoom = () => {
         setInCall(false);
         setRoomId('');
-        setInputRoomId('');
-    };
-
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleJoinRoom();
-        }
+        // Clear URL
+        window.history.pushState({}, '', window.location.pathname);
     };
 
     if (inCall && roomId) {
@@ -44,51 +47,27 @@ function App() {
                     </div>
 
                     <p className="tagline">
-                        1-1 Video calling with real-time camera filters
+                        Gọi video 1-1 với bộ lọc camera thời gian thực
                     </p>
 
-                    <div className="features">
-                        <div className="feature">
-                            <span className="feature-icon">✨</span>
-                            <span className="feature-text">Beauty Filter</span>
-                        </div>
-                        <div className="feature">
-                            <span className="feature-icon">🌫️</span>
-                            <span className="feature-text">Background Blur</span>
-                        </div>
-                        <div className="feature">
-                            <span className="feature-icon">🕶️</span>
-                            <span className="feature-text">AR Overlay</span>
-                        </div>
-                    </div>
-
                     <div className="join-section">
-                        <input
-                            type="text"
-                            className="room-input"
-                            placeholder="Enter Room ID (e.g., meeting-123)"
-                            value={inputRoomId}
-                            onChange={(e) => setInputRoomId(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                        />
                         <button
                             className="join-btn"
-                            onClick={handleJoinRoom}
-                            disabled={!inputRoomId.trim()}
+                            onClick={handleStartNewCall}
                         >
-                            🚀 Join Room
+                            🚀 Bắt đầu cuộc gọi mới
                         </button>
                     </div>
 
                     <div className="info-box">
                         <p className="info-text">
-                            💡 <strong>Tip:</strong> Share the same room ID with a friend to start a video call
+                            💡 <strong>Mẹo:</strong> Nhấn nút trên để tạo phòng, sau đó gửi link cho bạn bè
                         </p>
                     </div>
                 </div>
 
                 <footer className="footer">
-                    <p>Built with WebRTC + MediaPipe + React</p>
+                    <p>Được xây dựng với WebRTC + MediaPipe + React</p>
                 </footer>
             </div>
         </div>

@@ -214,7 +214,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
     return (
         <div className="video-call">
             <div className="video-header">
-                <h2>📞 Video Call - Room: {roomId}</h2>
+                <h2>📞 Cuộc gọi video - Phòng: {roomId}</h2>
                 <div className="connection-status">
                     <span className={`status-indicator ${connectionState}`}></span>
                     <span className="status-text">{connectionState}</span>
@@ -233,7 +233,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                     {!remoteStream && (
                         <div className="waiting-peer">
                             <div className="spinner"></div>
-                            <p>Waiting for peer to join...</p>
+                            <p>Đang chờ người khác tham gia...</p>
                         </div>
                     )}
                 </div>
@@ -248,7 +248,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         playsInline
                         muted
                     />
-                    <div className="local-label">You</div>
+                    <div className="local-label">Bạn</div>
                 </div>
             </div>
 
@@ -263,7 +263,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                     <button
                         className={`control-btn ${isMuted ? 'muted' : ''}`}
                         onClick={toggleMute}
-                        title={isMuted ? 'Unmute' : 'Mute'}
+                        title={isMuted ? 'Bật micro' : 'Tắt micro'}
                     >
                         {isMuted ? '🔇' : '🎤'}
                     </button>
@@ -271,7 +271,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                     <button
                         className={`control-btn ${isVideoOff ? 'video-off' : ''}`}
                         onClick={toggleVideo}
-                        title={isVideoOff ? 'Turn On Camera' : 'Turn Off Camera'}
+                        title={isVideoOff ? 'Bật camera' : 'Tắt camera'}
                     >
                         {isVideoOff ? '📷' : '📹'}
                     </button>
@@ -279,9 +279,9 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                     <button
                         className="control-btn leave-btn"
                         onClick={handleLeave}
-                        title="Leave Call"
+                        title="Rời cuộc gọi"
                     >
-                        📞 Leave
+                        📞 Rời phòng
                     </button>
                 </div>
             </div>
