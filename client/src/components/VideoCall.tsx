@@ -38,9 +38,7 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
 
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-    const [renderer, setRenderer] = useState<CanvasRenderer | null>(null);
-    const [peerConnection, setPeerConnection] = useState<PeerConnection | null>(null);
-    const [signalingClient, setSignalingClient] = useState<SignalingClient | null>(null);
+    // Removed unused state for renderer, pc, signaling (managed by refs)
 
     const [currentFilter, setCurrentFilter] = useState<FilterType>('none');
     const [isMuted, setIsMuted] = useState(false);
@@ -54,6 +52,12 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
         peerUserIdRef.current = id;
     };
 
+    // Refs for objects that don't need to trigger re-renders
+    const streamRef = useRef<MediaStream | null>(null);
+    const rendererRef = useRef<CanvasRenderer | null>(null);
+    const pcRef = useRef<PeerConnection | null>(null);
+    const signalingRef = useRef<SignalingClient | null>(null);
+
     // Initialize camera and setup
     useEffect(() => {
         let mounted = true;
@@ -62,8 +66,12 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
             try {
                 // 1. Get user media
                 const stream = await getUserMediaStream();
-                if (!mounted) return;
+                if (!mounted) {
+                    stopMediaStream(stream);
+                    return;
+                }
 
+                streamRef.current = stream;
                 setLocalStream(stream);
 
                 // 2. Setup video element and wait for it to be ready
@@ -84,11 +92,14 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                 }
 
                 // 3. Setup canvas renderer
+                // Start filtering immediately if possible
                 if (canvasRef.current && localVideoRef.current && mounted) {
                     const canvasRenderer = new CanvasRenderer(canvasRef.current, localVideoRef.current);
                     await canvasRenderer.initialize();
                     canvasRenderer.start();
-                    setRenderer(canvasRenderer);
+
+                    rendererRef.current = canvasRenderer;
+                    // setRenderer(canvasRenderer); // Removed
 
                     // 4. Setup WebRTC peer connection với filtered stream
                     // Wait a bit to ensure the first frame is rendered
@@ -117,7 +128,8 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         setConnectionState(state);
                     };
 
-                    setPeerConnection(pc);
+                    pcRef.current = pc;
+                    // setPeerConnection(pc); // Removed
 
                     // 5. Setup signaling client
                     const signaling = new SignalingClient();
@@ -127,8 +139,10 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         updatePeerUserId(userId);
 
                         // Người join sau sẽ tạo offer
-                        const offer = await pc.createOffer();
-                        signaling.sendOffer(offer, userId);
+                        if (pcRef.current) {
+                            const offer = await pcRef.current.createOffer();
+                            signaling.sendOffer(offer, userId);
+                        }
                     });
 
                     signaling.on('user-already-in-room', async ({ userId }) => {
@@ -141,19 +155,25 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         console.log('📥 Received offer, creating answer');
                         updatePeerUserId(userId);
 
-                        await pc.setRemoteDescription(offer);
-                        const answer = await pc.createAnswer();
-                        signaling.sendAnswer(answer, userId);
+                        if (pcRef.current) {
+                            await pcRef.current.setRemoteDescription(offer);
+                            const answer = await pcRef.current.createAnswer();
+                            signaling.sendAnswer(answer, userId);
+                        }
                     });
 
                     signaling.on('webrtc-answer', async ({ answer }) => {
                         console.log('📥 Received answer');
-                        await pc.setRemoteDescription(answer);
+                        if (pcRef.current) {
+                            await pcRef.current.setRemoteDescription(answer);
+                        }
                     });
 
                     signaling.on('ice-candidate', async ({ candidate }) => {
                         console.log('🧊 Received ICE candidate');
-                        await pc.addIceCandidate(candidate);
+                        if (pcRef.current) {
+                            await pcRef.current.addIceCandidate(candidate);
+                        }
                     });
 
                     signaling.on('user-left', () => {
@@ -171,50 +191,62 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
                         }
                     };
 
-                    setSignalingClient(signaling);
+                    signalingRef.current = signaling;
+                    // setSignalingClient(signaling); // Removed
 
                     // 6. Join room
                     signaling.joinRoom(roomId);
-
                 }
             } catch (error) {
                 console.error('❌ Error setting up call:', error);
-                alert(error);
-                onLeave();
+                if (mounted) {
+                    alert('Lỗi khởi tạo cuộc gọi: ' + error);
+                    onLeave();
+                }
             }
         }
 
         setupCall();
 
+        // Consolidated Cleanup
         return () => {
             mounted = false;
-        };
-    }, [roomId, onLeave]);
+            console.log('🧹 Cleaning up component resources');
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (renderer) {
-                renderer.destroy();
+            // Cleanup Renderer
+            if (rendererRef.current) {
+                rendererRef.current.destroy();
+                rendererRef.current = null;
             }
-            if (peerConnection) {
-                peerConnection.close();
+
+            // Cleanup PeerConnection
+            if (pcRef.current) {
+                pcRef.current.close();
+                pcRef.current = null;
             }
-            if (signalingClient) {
-                signalingClient.leaveRoom(roomId);
-                signalingClient.disconnect();
+
+            // Cleanup Signaling
+            if (signalingRef.current) {
+                signalingRef.current.leaveRoom(roomId);
+                signalingRef.current.disconnect();
+                signalingRef.current = null;
             }
-            if (localStream) {
-                stopMediaStream(localStream);
+
+            // Cleanup Media Stream
+            if (streamRef.current) {
+                stopMediaStream(streamRef.current);
+                streamRef.current = null;
             }
+
+            // Note: We don't need to manually clear state (setLocalStream(null)) because the component is unmounting
         };
-    }, [renderer, peerConnection, signalingClient, localStream, roomId]);
+    }, [roomId, onLeave]); // Only restart if room changes
 
     // Handle filter change
     const handleFilterChange = (filter: FilterType) => {
         setCurrentFilter(filter);
-        if (renderer) {
-            renderer.setFilter(filter);
+        if (rendererRef.current) {
+            rendererRef.current.setFilter(filter);
         }
     };
 
@@ -242,8 +274,8 @@ export function VideoCall({ roomId, onLeave }: VideoCallProps) {
 
     // Leave call
     const handleLeave = () => {
-        if (signalingClient) {
-            signalingClient.leaveRoom(roomId);
+        if (signalingRef.current) {
+            signalingRef.current.leaveRoom(roomId);
         }
         onLeave();
     };
